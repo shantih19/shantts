@@ -29,6 +29,9 @@ class Bot(discord.Client):
             except discord.ClientException as error:
                 await message.channel.send(error)
 
+        elif message.content.startswith("$$help") or message.content.startswith("$$info"):
+            with open("help.txt","r") as hlp:
+                message.channel.send(hlp.read())
 
         elif message.content.startswith("$"):
             try:

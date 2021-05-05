@@ -1,0 +1,18 @@
+**shantts** `version 0.1`
+
+__Commands:__
+
+`$text` - speaks message (ex. $OwO what dis)
+`$text [it_IT]` - speaks message in specified language (default is it_IT, use $$languages for complete list)
+`$$join` - Join the voice channel of the sender
+`$$leave` - Leaves current voice channel
+`$$help` - This command
+`$$languages` - Shows all supported languages
+`$$cbt` - education
+
+The voice's gender changes automatically based on the user's pronouns role (defaults to neutral if applicable)
+
+Upcoming:
+- message queue
+- volume control
+- specify voice
