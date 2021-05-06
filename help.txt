@@ -1,4 +1,4 @@
-**shantts** `version 0.1`
+**shantts** `version 0.2`
 
 __Commands:__
 
@@ -13,6 +13,5 @@ __Commands:__
 The voice's gender changes automatically based on the user's pronouns role (defaults to neutral if applicable)
 
 Upcoming:
-- message queue
 - volume control
 - specify voice
