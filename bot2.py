@@ -3,17 +3,63 @@ import os
 from gtts import gTTS
 from google.cloud import texttospeech
 import re
+import logging
+import asyncio
 
 token = os.getenv('DISC_TOKEN')
 sound = None
 client = texttospeech.TextToSpeechClient()
+messages = asyncio.Queue()
+
+logging.basicConfig(level=logging.INFO)
 
 class Bot(discord.Client):
     async def on_ready(self):
-        print("Logged on as {0}!".format(self.user))
+        logging.info("Logged on as {0}!".format(self.user))
     
+    async def checkQueue(self, error=None): #error argument required by sound.play call
+        global messages
+        try:
+            message = messages.get_nowait()
+            logging.info(message)
+            await self.synthesize(message)
+        except asyncio.QueueEmpty:
+            pass
+
+    async def synthesize(self, message):
+        global sound
+        try:
+            mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
+            arg = re.search("\[([a-z]{2})\]", message.content)
+            if arg:
+                lg = re.sub(r'\[|\]', '', arg.group(0))
+            else:
+                lg = 'it_IT'
+            synthesis_input = texttospeech.SynthesisInput(text=mess)
+            for i in message.author.roles:
+                if i.name == "she/her":
+                    gender = texttospeech.SsmlVoiceGender.FEMALE
+                    break
+                elif i.name == "he/him":
+                    gender = texttospeech.SsmlVoiceGender.MALE
+                    break
+                else:
+                    gender = texttospeech.SsmlVoiceGender.NEUTRAL
+            voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
+            audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+            response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+            logging.info("Lmao")
+            with open("output.mp3", "wb") as out:
+                out.write(response.audio_content)
+            source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
+            sound.play(source, after=await self.checkQueue())
+
+        except discord.ClientException as error:
+            await message.channel.send(error)
+
     async def on_message(self, message):
         global sound
+        global messages
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
             sound = await channel.connect()
@@ -29,38 +75,25 @@ class Bot(discord.Client):
             except discord.ClientException as error:
                 await message.channel.send(error)
 
-        elif message.content.startswith("$$help") or message.content.startswith("$$info"):
+        elif message.content.startswith("$$help"):
             with open("help.txt","r") as hlp:
-                message.channel.send(hlp.read())
+                await message.channel.send(hlp.read())
+        
+        elif message.content.startswith("$$languages"):
+            voices = str(client.list_voices().voices)
+            languages = "```"
+            lang = re.findall(r'"[a-z]{2}-[A-Z]{2}"', voices)
+            for i in lang:
+                l = re.sub(r'"', '', i)
+                if l not in languages:
+                    languages += l + " "
+            languages += "```"
+            await message.channel.send(languages)
 
         elif message.content.startswith("$"):
-            try:
-                mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
-                arg = re.search("\[(.*?)\]", message.content)
-                if arg:
-                    lg = re.sub(r'\[|\]', '', arg.group(0))
-                else:
-                    lg = 'it_IT'
-                synthesis_input = texttospeech.SynthesisInput(text=mess)
-                for i in message.author.roles:
-                    if i.name == "she/her":
-                        gender = texttospeech.SsmlVoiceGender.FEMALE
-                        break
-                    elif i.name == "he/him":
-                        gender = texttospeech.SsmlVoiceGender.MALE
-                        break
-                    else:
-                        gender = texttospeech.SsmlVoiceGender.NEUTRAL
-                voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
-                audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
-                response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
-                with open("output.mp3", "wb") as out:
-                    out.write(response.audio_content)
-                source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
-                sound.play(source)
-
-            except discord.ClientException as error:
-                await message.channel.send(error)
+            await messages.put(message)
+            logging.info(messages)
+            await self.checkQueue()
 
 bot = Bot()
 bot.run(token)
