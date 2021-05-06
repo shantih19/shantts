@@ -17,15 +17,19 @@ class Bot(discord.Client):
     async def on_ready(self):
         logging.info("Logged on as {0}!".format(self.user))
     
-    async def checkQueue(self, error=None): #error argument required by sound.play call
-        global messages
-        try:
-            message = messages.get_nowait()
-            logging.info(message)
-            await self.synthesize(message)
-        except asyncio.QueueEmpty:
-            pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bg_task = self.loop.create_task(self.queue_handler())
 
+    async def queue_handler(self):
+        global messages
+        global sound
+        await self.wait_until_ready()
+        while not self.is_closed():
+            if not sound.is_playing():
+                message = await messages.get()
+                await synthesize(message)
+    
     async def synthesize(self, message):
         global sound
         try:
@@ -52,7 +56,7 @@ class Bot(discord.Client):
             with open("output.mp3", "wb") as out:
                 out.write(response.audio_content)
             source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
-            sound.play(source, after=await self.checkQueue())
+            sound.play(source)
 
         except discord.ClientException as error:
             await message.channel.send(error)
@@ -92,8 +96,6 @@ class Bot(discord.Client):
 
         elif message.content.startswith("$"):
             await messages.put(message)
-            logging.info(messages)
-            await self.checkQueue()
 
 bot = Bot()
 bot.run(token)
