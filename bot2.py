@@ -21,17 +21,9 @@ class Bot(discord.Client):
         super().__init__(*args, **kwargs)
         self.bg_task = self.loop.create_task(self.queue_handler())
 
-    async def queue_handler(self):
-        global messages
-        global sound
-        await self.wait_until_ready()
-        while not self.is_closed():
-            if not sound.is_playing():
-                message = await messages.get()
-                await synthesize(message)
-    
     async def synthesize(self, message):
         global sound
+        global messages
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
             arg = re.search("\[([a-z]{2})\]", message.content)
@@ -61,12 +53,29 @@ class Bot(discord.Client):
         except discord.ClientException as error:
             await message.channel.send(error)
 
+
+    async def queue_handler(self):
+        global messages
+        global sound
+        await self.wait_until_ready()
+        while not self.is_closed():    
+            message = await messages.get()
+            logging.info("Got message: {0}".format(message.content))
+            while sound.is_playing():
+                await asyncio.sleep(0.25)
+            await self.synthesize(message)
+            messages.task_done()
+            await asyncio.sleep(0.25)
+    
     async def on_message(self, message):
         global sound
         global messages
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
-            sound = await channel.connect()
+            sound = await channel.connect(reconnect=True)
+            sound.stop()
+            logging.info(sound.source)
+            logging.info(sound.is_playing())
 
         elif message.content.startswith("$$leave"):
             await sound.disconnect()
@@ -95,7 +104,7 @@ class Bot(discord.Client):
             await message.channel.send(languages)
 
         elif message.content.startswith("$"):
-            await messages.put(message)
+            messages.put_nowait(message)
 
 bot = Bot()
 bot.run(token)
