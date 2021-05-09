@@ -26,9 +26,10 @@ class Bot(discord.Client):
         global messages
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
-            arg = re.search("\[([a-z]{2})\]", message.content)
+            arg = re.search("\[([a-z]{2}(_|-)[A-Z]{2})\]", message.content)
             if arg:
                 lg = re.sub(r'\[|\]', '', arg.group(0))
+                logging.info(lg)
             else:
                 lg = 'it_IT'
             synthesis_input = texttospeech.SynthesisInput(text=mess)
@@ -44,7 +45,7 @@ class Bot(discord.Client):
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
             response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
-            logging.info("Lmao")
+            logging.info("Got response")
             with open("output.mp3", "wb") as out:
                 out.write(response.audio_content)
             source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
@@ -53,18 +54,17 @@ class Bot(discord.Client):
         except discord.ClientException as error:
             await message.channel.send(error)
 
-
     async def queue_handler(self):
         global messages
         global sound
         await self.wait_until_ready()
         while not self.is_closed():    
             message = await messages.get()
+            messages.task_done()
             logging.info("Got message: {0}".format(message.content))
             while sound.is_playing():
                 await asyncio.sleep(0.25)
             await self.synthesize(message)
-            messages.task_done()
             await asyncio.sleep(0.25)
     
     async def on_message(self, message):
@@ -72,10 +72,9 @@ class Bot(discord.Client):
         global messages
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
-            sound = await channel.connect(reconnect=True)
+            sound = await channel.connect()
             sound.stop()
-            logging.info(sound.source)
-            logging.info(sound.is_playing())
+            logging.info("Connected to voice channel")
 
         elif message.content.startswith("$$leave"):
             await sound.disconnect()
@@ -105,6 +104,7 @@ class Bot(discord.Client):
 
         elif message.content.startswith("$"):
             messages.put_nowait(message)
+            logging.info(messages)
 
 bot = Bot()
 bot.run(token)
