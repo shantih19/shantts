@@ -12,6 +12,16 @@ client = texttospeech.TextToSpeechAsyncClient()
 
 logging.basicConfig(level=logging.INFO)
 
+class OpusAudio(discord.AudioSource):
+    def __init__(self,stream):
+        self._packer_iter = discord.oggparse.OggStream(stream).iter_packets()
+
+    def read(self):
+        return next(self._packer_iter, b'')
+
+    def is_opus(self):
+        return True
+
 class Bot(discord.Client):
 
     messages = asyncio.Queue()
@@ -26,7 +36,9 @@ class Bot(discord.Client):
     async def join_channel(self, channel):
         if not self.voice_clients:
             await channel.connect()
-        elif self.voice_clients[0].channel == channel:
+        elif not self.voice_clients[0].channel == channel:
+            while self.voice_clients[0].is_playing():
+                await asyncio.sleep(0.25)
             await self.voice_clients[0].move_to(channel)
 
     async def synthesize(self, message, is_file):
@@ -54,14 +66,14 @@ class Bot(discord.Client):
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.OGG_OPUS)
             response = await client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+            await asyncio.sleep(0.25)
             logging.info("Got response")
             logging.info(type(response.audio_content))
             if not is_file:
                 await self.join_channel(message.author.voice.channel)
-                with open("output.ogg", "wb") as out:
-                    out.write(response.audio_content)
-                    source = discord.FFmpegOpusAudio("output.ogg", codec='copy')
-                    self.voice_clients[0].play(source)
+                audio = BytesIO(response.audio_content)
+                source = OpusAudio(audio)
+                self.voice_clients[0].play(source)
             else:
                 audio_file = discord.File(BytesIO(response.audio_content), "{0}.ogg".format(mess))
                 await message.reply(file=audio_file)
