@@ -6,6 +6,7 @@ import re
 import logging
 import asyncio
 from io import BytesIO
+import flag
 
 token = os.getenv('DISC_TOKEN')
 client = texttospeech.TextToSpeechAsyncClient()
@@ -53,7 +54,7 @@ class Bot(discord.Client):
                 logging.info(lg)
             else:
                 lg = 'it_IT'
-            synthesis_input = texttospeech.SynthesisInput(text=mess)
+            synthesis_input = texttospeech.SynthesisInput(text=mess) if not mess.startswith('<speak>') else texttospeech.SynthesisInput(ssml=mess)
             for i in message.author.roles:
                 if i.name == "she/her":
                     gender = texttospeech.SsmlVoiceGender.FEMALE
@@ -66,9 +67,7 @@ class Bot(discord.Client):
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.OGG_OPUS)
             response = await client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
-            await asyncio.sleep(0.25)
             logging.info("Got response")
-            logging.info(type(response.audio_content))
             if not is_file:
                 await self.join_channel(message.author.voice.channel)
                 audio = BytesIO(response.audio_content)
@@ -91,7 +90,8 @@ class Bot(discord.Client):
                 while self.voice_clients[0].is_playing():
                     await asyncio.sleep(0.25)
             await self.synthesize(message, False)
-                
+            self.messages.task_done()    
+
     async def on_message(self, message):
        
         if message.content.startswith("$$leave"):
@@ -110,15 +110,16 @@ class Bot(discord.Client):
                 await message.reply(hlp.read())
         
         elif message.content.startswith("$$languages"):
-            voices = str(await client.list_voices().voices)
-            languages = "```"
+            response = await client.list_voices()
+            voices = str(response.voices)
+            languages = ""
             lang = re.findall(r'"[a-z]{2}-[A-Z]{2}"', voices)
             for i in lang:
                 l = re.sub(r'"', '', i)
                 if l not in languages:
-                    languages += l + " "
-            languages += "```"
-            await message.reply(languages)
+                    languages += l + " :" + l[3:5]  + ": "
+            languages += ""
+            await message.reply(flag.flagize(languages))
 
         elif message.content.startswith("$$stop"):
             if self.voice_clients[0].is_playing():
@@ -128,7 +129,7 @@ class Bot(discord.Client):
             await self.synthesize(message,True)
 
         elif message.content.startswith("$"):
-            await self.messages.put(message)
+            self.messages.put_nowait(message)
 
 bot = Bot()
 bot.run(token)
