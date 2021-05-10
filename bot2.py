@@ -81,8 +81,12 @@ class Bot(discord.Client):
     async def on_message(self, message):
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
-            await channel.connect()
-            logging.info("Connected to voice channel")
+            if not self.voice_clients:
+                await channel.connect()
+                logging.info("Connected to voice channel")
+            else:
+                await self.voice_clients[0].move_to(channel)
+                logging.info("Moved to new channel")
 
         elif message.content.startswith("$$leave"):
             await self.voice_clients[0].disconnect()
