@@ -8,7 +8,7 @@ import asyncio
 from io import BytesIO
 
 token = os.getenv('DISC_TOKEN')
-client = texttospeech.TextToSpeechClient()
+client = texttospeech.TextToSpeechAsyncClient()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,11 +22,13 @@ class Bot(discord.Client):
 
     async def on_ready(self):
         logging.info("Logged on as {0}!".format(self.user))
-        channel = self.guilds[0].get_member_named("ShanTTS#4113").voice.channel
-        if channel:
-            await channel.connect()
-            logging.info("Reconnected to voice channel")
     
+    async def join_channel(self, channel):
+        if not self.voice_clients:
+            await channel.connect()
+        elif self.voice_clients[0].channel == channel:
+            await self.voice_clients[0].move_to(channel)
+
     async def synthesize(self, message, is_file):
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
@@ -51,10 +53,11 @@ class Bot(discord.Client):
                     gender = texttospeech.SsmlVoiceGender.NEUTRAL
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.OGG_OPUS)
-            response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+            response = await client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
             logging.info("Got response")
             logging.info(type(response.audio_content))
             if not is_file:
+                await self.join_channel(message.author.voice.channel)
                 with open("output.ogg", "wb") as out:
                     out.write(response.audio_content)
                     source = discord.FFmpegOpusAudio("output.ogg", codec='copy')
@@ -70,25 +73,16 @@ class Bot(discord.Client):
         await self.wait_until_ready()
         logging.info("Task loaded")
         while not self.is_closed():
+            message = await self.messages.get()
+            logging.info("Got message: {0}".format(message.content))
             if self.voice_clients:
-                message = await self.messages.get()
-                logging.info("Got message: {0}".format(message.content))
                 while self.voice_clients[0].is_playing():
                     await asyncio.sleep(0.25)
-                await self.synthesize(message, False)
-            await asyncio.sleep(0.25)
-    
+            await self.synthesize(message, False)
+                
     async def on_message(self, message):
-        if message.content.startswith("$$join"):
-            channel = message.author.voice.channel
-            if not self.voice_clients:
-                await channel.connect()
-                logging.info("Connected to voice channel")
-            else:
-                await self.voice_clients[0].move_to(channel)
-                logging.info("Moved to new channel")
-
-        elif message.content.startswith("$$leave"):
+       
+        if message.content.startswith("$$leave"):
             await self.voice_clients[0].disconnect()
 
         elif message.content.startswith("$$cbt"):
@@ -104,7 +98,7 @@ class Bot(discord.Client):
                 await message.reply(hlp.read())
         
         elif message.content.startswith("$$languages"):
-            voices = str(client.list_voices().voices)
+            voices = str(await client.list_voices().voices)
             languages = "```"
             lang = re.findall(r'"[a-z]{2}-[A-Z]{2}"', voices)
             for i in lang:
