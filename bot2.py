@@ -21,7 +21,12 @@ class Bot(discord.Client):
         self.bg_task = self.loop.create_task(self.queue_handler())
 
     async def on_ready(self):
+        global sound
         logging.info("Logged on as {0}!".format(self.user))
+        channel = self.guilds[0].get_member_named("ShanTTS#4113").voice.channel
+        if channel:
+            await channel.connect()
+            logging.info("Reconnected to voice channel")
     
     async def synthesize(self, message, is_file):
         global sound
@@ -48,17 +53,17 @@ class Bot(discord.Client):
                 else:
                     gender = texttospeech.SsmlVoiceGender.NEUTRAL
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
-            audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+            audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.OGG_OPUS)
             response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
             logging.info("Got response")
             logging.info(type(response.audio_content))
             if not is_file:
-                with open("output.mp3", "wb") as out:
+                with open("output.ogg", "wb") as out:
                     out.write(response.audio_content)
-                    source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
+                    source = discord.FFmpegOpusAudio("output.ogg", codec='copy')
                     sound.play(source)
             else:
-                audio_file = discord.File(BytesIO(response.audio_content), "{0}.mp3".format(mess))
+                audio_file = discord.File(BytesIO(response.audio_content), "{0}.ogg".format(mess))
                 await message.reply(file=audio_file)
 
         except discord.ClientException as error:
@@ -69,12 +74,13 @@ class Bot(discord.Client):
         global sound
         await self.wait_until_ready()
         logging.info("Task loaded")
-        while not self.is_closed():    
-            message = await messages.get()
-            logging.info("Got message: {0}".format(message.content))
-            while sound.is_playing():
-                await asyncio.sleep(0.25)
-            await self.synthesize(message, False)
+        while not self.is_closed():
+            if self.voice_clients:
+                message = await messages.get()
+                logging.info("Got message: {0}".format(message.content))
+                while sound.is_playing():
+                    await asyncio.sleep(0.25)
+                await self.synthesize(message, False)
             await asyncio.sleep(0.25)
     
     async def on_message(self, message):
