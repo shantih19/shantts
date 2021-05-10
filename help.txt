@@ -1,11 +1,13 @@
-**shantts** `version 0.2`
+**shantts** `version 0.3`
 
 __Commands:__
 
-`$text` - speaks message (ex. $OwO what dis)
-`$text [it_IT]` - speaks message in specified language (default is it_IT, use $$languages for complete list)
+`$text` - Speaks message (ex. $OwO what dis)
+`$text [it_IT]` - Speaks message in specified language (default is it_IT, use $$languages for complete list)
+`$$file text` - Saves spoken message to a file instead of playing, uses the same syntax as normal tts
 `$$join` - Join the voice channel of the sender
 `$$leave` - Leaves current voice channel
+`$$stop` - Stops currently playing message
 `$$help` - This command
 `$$languages` - Shows all supported languages
 `$$cbt` - education

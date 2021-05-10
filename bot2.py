@@ -5,6 +5,7 @@ from google.cloud import texttospeech
 import re
 import logging
 import asyncio
+from io import BytesIO
 
 token = os.getenv('DISC_TOKEN')
 sound = None
@@ -14,18 +15,22 @@ messages = asyncio.Queue()
 logging.basicConfig(level=logging.INFO)
 
 class Bot(discord.Client):
-    async def on_ready(self):
-        logging.info("Logged on as {0}!".format(self.user))
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bg_task = self.loop.create_task(self.queue_handler())
 
-    async def synthesize(self, message):
+    async def on_ready(self):
+        logging.info("Logged on as {0}!".format(self.user))
+    
+    async def synthesize(self, message, is_file):
         global sound
         global messages
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
+            if is_file:
+                mess=mess[5:]
+                logging.info(mess)
             arg = re.search("\[([a-z]{2}(_|-)[A-Z]{2})\]", message.content)
             if arg:
                 lg = re.sub(r'\[|\]', '', arg.group(0))
@@ -46,10 +51,15 @@ class Bot(discord.Client):
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
             response = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
             logging.info("Got response")
-            with open("output.mp3", "wb") as out:
-                out.write(response.audio_content)
-            source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
-            sound.play(source)
+            logging.info(type(response.audio_content))
+            if not is_file:
+                with open("output.mp3", "wb") as out:
+                    out.write(response.audio_content)
+                    source = discord.FFmpegOpusAudio("output.mp3",bitrate=96)
+                    sound.play(source)
+            else:
+                audio_file = discord.File(BytesIO(response.audio_content), "{0}.mp3".format(mess))
+                await message.reply(file=audio_file)
 
         except discord.ClientException as error:
             await message.channel.send(error)
@@ -58,13 +68,13 @@ class Bot(discord.Client):
         global messages
         global sound
         await self.wait_until_ready()
+        logging.info("Task loaded")
         while not self.is_closed():    
             message = await messages.get()
-            messages.task_done()
             logging.info("Got message: {0}".format(message.content))
             while sound.is_playing():
                 await asyncio.sleep(0.25)
-            await self.synthesize(message)
+            await self.synthesize(message, False)
             await asyncio.sleep(0.25)
     
     async def on_message(self, message):
@@ -73,7 +83,6 @@ class Bot(discord.Client):
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
             sound = await channel.connect()
-            sound.stop()
             logging.info("Connected to voice channel")
 
         elif message.content.startswith("$$leave"):
@@ -89,7 +98,7 @@ class Bot(discord.Client):
 
         elif message.content.startswith("$$help"):
             with open("help.txt","r") as hlp:
-                await message.channel.send(hlp.read())
+                await message.reply(hlp.read())
         
         elif message.content.startswith("$$languages"):
             voices = str(client.list_voices().voices)
@@ -100,11 +109,17 @@ class Bot(discord.Client):
                 if l not in languages:
                     languages += l + " "
             languages += "```"
-            await message.channel.send(languages)
+            await message.reply(languages)
+
+        elif message.content.startswith("$$stop"):
+            if sound.is_playing():
+                sound.stop()
+
+        elif message.content.startswith("$$file"):
+            await self.synthesize(message,True)
 
         elif message.content.startswith("$"):
-            messages.put_nowait(message)
-            logging.info(messages)
+            await messages.put(message)
 
 bot = Bot()
 bot.run(token)
