@@ -8,20 +8,19 @@ import asyncio
 from io import BytesIO
 
 token = os.getenv('DISC_TOKEN')
-sound = None
 client = texttospeech.TextToSpeechClient()
-messages = asyncio.Queue()
 
 logging.basicConfig(level=logging.INFO)
 
 class Bot(discord.Client):
+
+    messages = asyncio.Queue()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bg_task = self.loop.create_task(self.queue_handler())
 
     async def on_ready(self):
-        global sound
         logging.info("Logged on as {0}!".format(self.user))
         channel = self.guilds[0].get_member_named("ShanTTS#4113").voice.channel
         if channel:
@@ -29,8 +28,6 @@ class Bot(discord.Client):
             logging.info("Reconnected to voice channel")
     
     async def synthesize(self, message, is_file):
-        global sound
-        global messages
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
             if is_file:
@@ -61,7 +58,7 @@ class Bot(discord.Client):
                 with open("output.ogg", "wb") as out:
                     out.write(response.audio_content)
                     source = discord.FFmpegOpusAudio("output.ogg", codec='copy')
-                    sound.play(source)
+                    self.voice_clients[0].play(source)
             else:
                 audio_file = discord.File(BytesIO(response.audio_content), "{0}.ogg".format(mess))
                 await message.reply(file=audio_file)
@@ -70,34 +67,30 @@ class Bot(discord.Client):
             await message.channel.send(error)
 
     async def queue_handler(self):
-        global messages
-        global sound
         await self.wait_until_ready()
         logging.info("Task loaded")
         while not self.is_closed():
             if self.voice_clients:
-                message = await messages.get()
+                message = await self.messages.get()
                 logging.info("Got message: {0}".format(message.content))
-                while sound.is_playing():
+                while self.voice_clients[0].is_playing():
                     await asyncio.sleep(0.25)
                 await self.synthesize(message, False)
             await asyncio.sleep(0.25)
     
     async def on_message(self, message):
-        global sound
-        global messages
         if message.content.startswith("$$join"):
             channel = message.author.voice.channel
-            sound = await channel.connect()
+            await channel.connect()
             logging.info("Connected to voice channel")
 
         elif message.content.startswith("$$leave"):
-            await sound.disconnect()
+            await self.voice_clients[0].disconnect()
 
         elif message.content.startswith("$$cbt"):
             try:
                 source = discord.FFmpegOpusAudio('cbt.ogg', bitrate=96)
-                sound.play(source)
+                self.voice_clients[0].play(source)
 
             except discord.ClientException as error:
                 await message.channel.send(error)
@@ -118,14 +111,14 @@ class Bot(discord.Client):
             await message.reply(languages)
 
         elif message.content.startswith("$$stop"):
-            if sound.is_playing():
-                sound.stop()
+            if self.voice_clients[0].is_playing():
+                self.voice_clients[0].stop()
 
         elif message.content.startswith("$$file"):
             await self.synthesize(message,True)
 
         elif message.content.startswith("$"):
-            await messages.put(message)
+            await self.messages.put(message)
 
 bot = Bot()
 bot.run(token)
