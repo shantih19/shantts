@@ -4,6 +4,7 @@ from gtts import gTTS
 from google.cloud import texttospeech
 import re
 import logging
+import queue
 import asyncio
 from io import BytesIO
 import flag
@@ -25,7 +26,7 @@ class OpusAudio(discord.AudioSource):
 
 class Bot(discord.Client):
 
-    messages = asyncio.Queue()
+    messages = queue.SimpleQueue()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -47,7 +48,6 @@ class Bot(discord.Client):
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
             if is_file:
                 mess=mess[5:]
-                logging.info(mess)
             arg = re.search("\[([a-z]{2}(_|-)[A-Z]{2})\]", message.content)
             if arg:
                 lg = re.sub(r'\[|\]', '', arg.group(0))
@@ -84,13 +84,15 @@ class Bot(discord.Client):
         await self.wait_until_ready()
         logging.info("Task loaded")
         while not self.is_closed():
-            message = await self.messages.get()
-            logging.info("Got message: {0}".format(message.content))
-            if self.voice_clients:
-                while self.voice_clients[0].is_playing():
-                    await asyncio.sleep(0.25)
-            await self.synthesize(message, False)
-            self.messages.task_done()    
+            if self.messages.empty():
+                await asyncio.sleep(0.25)
+            else:
+                message = self.messages.get()
+                logging.info("Got message: {0}".format(message.content))
+                if self.voice_clients:
+                    while self.voice_clients[0].is_playing():
+                        await asyncio.sleep(0.25)
+                await self.synthesize(message, False)
 
     async def on_message(self, message):
        
