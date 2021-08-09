@@ -8,9 +8,9 @@ import queue
 import asyncio
 from io import BytesIO
 import flag
+import traceback
 
 token = os.getenv('DISC_TOKEN')
-client = texttospeech.TextToSpeechAsyncClient()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,6 +26,7 @@ class OpusAudio(discord.AudioSource):
 
 class Bot(discord.Client):
 
+
     messages = queue.SimpleQueue()
 
     def __init__(self, *args, **kwargs):
@@ -36,14 +37,11 @@ class Bot(discord.Client):
         logging.info("Logged on as {0}!".format(self.user))
     
     async def join_channel(self, channel):
-        if not self.voice_clients:
+        if not channel in self.voice_clients:
             await channel.connect()
-        elif not self.voice_clients[0].channel == channel:
-            while self.voice_clients[0].is_playing():
-                await asyncio.sleep(0.25)
-            await self.voice_clients[0].move_to(channel)
 
     async def synthesize(self, message, is_file):
+        client = texttospeech.TextToSpeechAsyncClient()
         try:
             mess = re.sub(r'\$|\[(.*?)\]', '', message.content)
             if is_file:
@@ -66,18 +64,28 @@ class Bot(discord.Client):
                     gender = texttospeech.SsmlVoiceGender.NEUTRAL
             voice = texttospeech.VoiceSelectionParams(language_code=lg, ssml_gender=gender)
             audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.OGG_OPUS)
+            logging.info("Sending request")
             response = await client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
             logging.info("Got response")
             if not is_file:
-                await self.join_channel(message.author.voice.channel)
                 audio = BytesIO(response.audio_content)
                 source = OpusAudio(audio)
-                self.voice_clients[0].play(source)
+                await self.join_channel(message.author.voice.channel)
+                for i in self.voice_clients:
+                    if i.channel.id == message.author.voice.channel.id:
+                        i.play(source)
+                        break
             else:
                 audio_file = discord.File(BytesIO(response.audio_content), "{0}.ogg".format(mess))
                 await message.reply(file=audio_file)
 
         except discord.ClientException as error:
+            logging.error(error)
+            await message.channel.send(error)
+            
+        except Exception as error:
+            logging.error(traceback.format_exc())
+            logging.error(error)
             await message.channel.send(error)
 
     async def queue_handler(self):
@@ -85,25 +93,28 @@ class Bot(discord.Client):
         logging.info("Task loaded")
         while not self.is_closed():
             if self.messages.empty():
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(1)
             else:
                 message = self.messages.get()
-                logging.info("Got message: {0}".format(message.content))
-                if self.voice_clients:
-                    while self.voice_clients[0].is_playing():
-                        await asyncio.sleep(0.25)
-                await self.synthesize(message, False)
+                for i in self.voice_clients:
+                    if i.channel.id == message.author.voice.channel.id:
+                        if i.is_playing():
+                            await asyncio.sleep(1)
+
+                await self.synthesize(*message)
 
     async def on_message(self, message):
        
         if message.content.startswith("$$leave"):
+
             await self.voice_clients[0].disconnect()
 
         elif message.content.startswith("$$cbt"):
             try:
                 source = discord.FFmpegOpusAudio('cbt.ogg', bitrate=96)
-                self.voice_clients[0].play(source)
-
+                for i in self.voice_clients:
+                    if i.channel.id == message.author.voice.channel.id:
+                        i.play(source)    
             except discord.ClientException as error:
                 await message.channel.send(error)
 
@@ -112,6 +123,8 @@ class Bot(discord.Client):
                 await message.reply(hlp.read())
         
         elif message.content.startswith("$$languages"):
+
+            client = texttospeech.TextToSpeechAsyncClient()
             response = await client.list_voices()
             voices = str(response.voices)
             languages = ""
@@ -124,14 +137,26 @@ class Bot(discord.Client):
             await message.reply(flag.flagize(languages))
 
         elif message.content.startswith("$$stop"):
-            if self.voice_clients[0].is_playing():
-                self.voice_clients[0].stop()
+            if self.voice_clients[self.voice_clients.index(message.author.voice.channel)].is_playing():
+                self.voice_clients[self.voice_clients.index(message.author.voice.channel)].stop()
 
         elif message.content.startswith("$$file"):
-            await self.synthesize(message,True)
+            item = (message, True)
+            self.messages.put_nowait(item)
+
+        elif message.content.startswith("$amogus"):
+            try:
+                source = discord.FFmpegOpusAudio("amogus.opus", bitrate=96)
+                self.voice_clients[self.voice_clients.index(message.author.voice.channel)].play(source)
+            except discord.ClientException as error:
+                await message.channel.send(error)
+
+        elif message.content.startswith("$$restart"):
+            os.system("systemctl restart shantts")
 
         elif message.content.startswith("$"):
-            self.messages.put_nowait(message)
+            item=(message,False)
+            self.messages.put_nowait(item)
 
 bot = Bot()
 bot.run(token)
