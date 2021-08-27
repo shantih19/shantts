@@ -1,4 +1,4 @@
-**shantts** `version 0.4`
+**shantts** `version 0.5`
 
 __Commands:__
 
@@ -10,8 +10,13 @@ __Commands:__
 `$$help` - This command
 `$$languages` - Shows all supported languages
 `$$cbt` - education
+`$$amogus` - Kinda sus
 
 The voice's gender changes automatically based on the user's pronouns role (defaults to neutral if applicable)
+Roles:
+-`she/her`
+-`he/him`
+-`they/them`
 
 Upcoming:
 - volume control
