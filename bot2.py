@@ -37,7 +37,12 @@ class Bot(discord.Client):
         logging.info("Logged on as {0}!".format(self.user))
     
     async def join_channel(self, channel):
-        if not channel in self.voice_clients:
+        found = False
+        for i in self.voice_clients:
+            if i.channel.id == channel.id:
+                found = True
+                break
+        if not found:
             await channel.connect()
 
     async def synthesize(self, message, is_file):
@@ -97,7 +102,7 @@ class Bot(discord.Client):
             else:
                 message = self.messages.get()
                 for i in self.voice_clients:
-                    if i.channel.id == message.author.voice.channel.id:
+                    if i.channel.id == message[0].author.voice.channel.id:
                         if i.is_playing():
                             await asyncio.sleep(1)
 
@@ -110,10 +115,11 @@ class Bot(discord.Client):
             await self.voice_clients[0].disconnect()
 
         elif message.content.startswith("$$cbt"):
+            await self.join_channel(message.author.voice.channel)
             try:
                 source = discord.FFmpegOpusAudio('cbt.ogg', bitrate=96)
                 for i in self.voice_clients:
-                    if i.channel.id == message.author.voice.channel.id:
+                    if i.channel.id == message.author.voice.channel.id and not i.is_playing():
                         i.play(source)    
             except discord.ClientException as error:
                 await message.channel.send(error)
@@ -137,17 +143,20 @@ class Bot(discord.Client):
             await message.reply(flag.flagize(languages))
 
         elif message.content.startswith("$$stop"):
-            if self.voice_clients[self.voice_clients.index(message.author.voice.channel)].is_playing():
-                self.voice_clients[self.voice_clients.index(message.author.voice.channel)].stop()
-
+            for i in self.voice_clients:
+                if i.channel.id == message.author.voice.channel.id and i.is_playing():
+                    i.stop()
         elif message.content.startswith("$$file"):
             item = (message, True)
             self.messages.put_nowait(item)
 
-        elif message.content.startswith("$amogus"):
+        elif message.content.startswith("$$amogus"):
+            await self.join_channel(message.author.voice.channel)
             try:
                 source = discord.FFmpegOpusAudio("amogus.opus", bitrate=96)
-                self.voice_clients[self.voice_clients.index(message.author.voice.channel)].play(source)
+                for i in self.voice_clients:
+                    if i.channel.id == message.author.voice.channel.id and not i.is_playing():
+                        i.play(source)
             except discord.ClientException as error:
                 await message.channel.send(error)
 
