@@ -1,0 +1,12 @@
+venv/
+bot-env/
+
+output.mp3
+output.wav
+output.ogg
+
+./*.json
+
+__pycache__/
+
+.vscode/

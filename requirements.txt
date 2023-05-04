@@ -18,12 +18,10 @@ google-cloud-texttospeech==2.14.1
 googleapis-common-protos==1.59.0
 grpcio==1.51.3
 grpcio-status==1.51.3
-gTTS==2.3.2
 idna==2.10
 multidict==5.1.0
 packaging==20.9
 pipdate==0.5.3
-pkg-resources==0.0.0
 proto-plus==1.22.2
 protobuf==4.22.1
 pyasn1==0.4.8
