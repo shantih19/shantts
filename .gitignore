@@ -5,7 +5,7 @@ output.mp3
 output.wav
 output.ogg
 
-./*.json
+/*.json
 
 __pycache__/
 
