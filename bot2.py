@@ -10,7 +10,6 @@ import queue
 from io import BytesIO
 import flag
 import traceback
-from systemd import journal
 import itertools
 
 token = os.getenv("DISC_TOKEN")
@@ -39,7 +38,7 @@ class Bot(discord.Client):
     async def setup_hook(self):
         self.bg_task = self.loop.create_task(self.queue_handler())
         self.client = texttospeech.TextToSpeechAsyncClient()
-    
+
     async def on_ready(self):
         logging.info("Logged on as {0}!".format(self.user))
 
@@ -81,10 +80,10 @@ class Bot(discord.Client):
             )
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.OGG_OPUS,
-                volume_gain_db = volume_db(self.volume)
+                volume_gain_db=volume_db(self.volume),
             )
             logging.info("Sending TTS request")
-            
+
             if is_file or await self.join_channel(message.author):
                 response = await self.client.synthesize_speech(
                     input=synthesis_input, voice=voice, audio_config=audio_config
@@ -155,18 +154,31 @@ class Bot(discord.Client):
 
         elif message.content.startswith("$$languages"):
             response = await self.client.list_voices()
-            languages = "".join([f"{l[0]} :{l[0].split('-')[1]}:\n" for l in set(tuple(voice.language_codes) for voice in response.voices)])
+            languages = "".join(
+                [
+                    f"{l[0]} :{l[0].split('-')[1]}:\n"
+                    for l in {tuple(voice.language_codes) for voice in response.voices}
+                ]
+            )
             await message.reply(flag.flagize(languages))
 
         elif message.content.startswith("$$voices"):
             response = await self.client.list_voices()
-            voices = "".join([f"{voice.name} {str(voice.language_codes)}\n" for voice in response.voices]).encode()
-            await message.reply("Voices:", file=discord.File(BytesIO(voices), "voices.txt"))
+            voices = "".join(
+                [
+                    f"{voice.name} {str(voice.language_codes)}\n"
+                    for voice in response.voices
+                ]
+            ).encode()
+            await message.reply(
+                "Voices:", file=discord.File(BytesIO(voices), "voices.txt")
+            )
 
         elif message.content.startswith("$$stop"):
             for i in self.voice_clients:
                 if i.channel.id == message.author.voice.channel.id and i.is_playing():
                     i.stop()
+
         elif message.content.startswith("$$file"):
             item = (message, True)
             self.messages.put_nowait(item)
@@ -188,9 +200,8 @@ class Bot(discord.Client):
             os.system("systemctl restart shantts")
 
         elif message.content.startswith("$$volume"):
-            vol = ''.join(filter(str.isdigit, message.content))
-            if vol:
-                self.volume = min(max(0, int(vol)),150)
+            if vol := "".join(filter(str.isdigit, message.content)):
+                self.volume = min(max(0, int(vol)), 150)
             await message.channel.send(f"Current volume: {self.volume}%")
 
         elif message.content.startswith("$"):
@@ -215,10 +226,11 @@ class Bot(discord.Client):
 
 def volume_db(volume):
     if volume <= 0:
-       volume = 0.001
+        volume = 0.001
     v = 5 * math.log(volume / 100)
     logging.debug(f"gain {v} dB")
     return min(max(-96, v), 10)
+
 
 intents = discord.Intents.default()
 intents.message_content = True
