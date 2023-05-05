@@ -1,14 +1,17 @@
-**shantts** `version 0.5`
+**shantts** `version 1.0`
 
 __Commands:__
 
 `$text` - Speaks message (ex. $OwO what dis)
 `$text [it_IT]` - Speaks message in specified language (default is it_IT, use $$languages for complete list)
 `$$file text` - Saves spoken message to a file instead of playing, uses the same syntax as normal tts
+`$$volume` - Show current volume
+`$$volume [0-100]` - Set volume
 `$$leave` - Leaves current voice channel
 `$$stop` - Stops currently playing message
 `$$help` - This command
 `$$languages` - Shows all supported languages
+`$$voices` - Sends list of all available voices
 `$$cbt` - education
 `$$amogus` - Kinda sus
 
@@ -19,5 +22,4 @@ Roles:
 -`they/them`
 
 Upcoming:
-- volume control
 - specify voice
