@@ -40,10 +40,8 @@ class OpusAudio(discord.AudioSource):
 
 class Bot(discord.Client):
     messages = queue.Queue()
+    queue_gauge.set(0)
     volume = 100
-
-    def queue_size(self):
-        return self.messages.qsize()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,7 +49,6 @@ class Bot(discord.Client):
     async def setup_hook(self):
         self.bg_task = self.loop.create_task(self.queue_handler())
         self.client = texttospeech.TextToSpeechAsyncClient()
-        queue_gauge.set_function(self.queue_size)
 
     async def on_ready(self):
         logging.info("Logged on as {0}!".format(self.user))
@@ -71,7 +68,6 @@ class Bot(discord.Client):
                 mess = mess[5:]
             if arg := re.search("\[([a-z]{2}(_|-)[A-Z]{2})\]", message.content):
                 lg = re.sub(r"\[|\]", "", arg[0])
-                logging.debug(lg)
 
             else:
                 lg = "it_IT"
@@ -104,7 +100,6 @@ class Bot(discord.Client):
                 )
                 request_size.observe(len(message.content))
                 logging.info("Got response")
-                logging.debug(response)
                 if not is_file:
                     audio = BytesIO(response.audio_content)
                     source = OpusAudio(audio)
@@ -137,6 +132,7 @@ class Bot(discord.Client):
             while self.messages.empty():
                 await asyncio.sleep(1)
             message = self.messages.get_nowait()
+            queue_gauge.dec()
             logging.debug(f"extracted {message} from queue")
             for client in self.voice_clients:
                 if (
@@ -198,6 +194,7 @@ class Bot(discord.Client):
         elif message.content.startswith("$$file"):
             item = (message, True)
             self.messages.put_nowait(item)
+            queue_gauge.inc()
 
         elif message.content.startswith("$$amogus"):
             if await self.join_channel(message.author):
@@ -221,11 +218,9 @@ class Bot(discord.Client):
             await message.channel.send(f"Current volume: {self.volume}%")
 
         elif message.content.startswith("$"):
-            logging.debug(message)
             item = (message, False)
             self.messages.put_nowait(item)
-            queue_gauge.set_to_current_time()
-            logging.debug(self.messages.qsize())
+            queue_gauge.inc()
 
     async def on_voice_state_update(self, member, before, after):
         vc = [
