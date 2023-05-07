@@ -24,7 +24,7 @@ token = os.getenv("DISC_TOKEN")
 
 logging.basicConfig(level=logging.DEBUG)
 
-start_http_server(80, "10.0.0.1")
+start_http_server(9901, "10.0.0.1")
 
 
 class OpusAudio(discord.AudioSource):
@@ -102,7 +102,7 @@ class Bot(discord.Client):
                 response = await self.client.synthesize_speech(
                     input=synthesis_input, voice=voice, audio_config=audio_config
                 )
-                request_size.observe(len(message))
+                request_size.observe(len(message.content))
                 logging.info("Got response")
                 logging.debug(response)
                 if not is_file:
