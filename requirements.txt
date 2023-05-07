@@ -22,6 +22,7 @@ idna==2.10
 multidict==5.1.0
 packaging==20.9
 pipdate==0.5.3
+prometheus_client==0.16.0
 proto-plus==1.22.2
 protobuf==4.22.1
 pyasn1==0.4.8

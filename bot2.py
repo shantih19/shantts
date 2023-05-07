@@ -10,11 +10,21 @@ import queue
 from io import BytesIO
 import flag
 import traceback
-import itertools
+from prometheus_client import Gauge, Summary, start_http_server
+
+NAMESPACE = "shantts"
+
+queue_gauge = Gauge("queue_size", "Size of queue for synthesis", namespace=NAMESPACE)
+request_time = Summary(
+    "request_time", "Time of execution for a request", namespace=NAMESPACE
+)
+request_size = Summary("request_size", "Size of request", namespace=NAMESPACE)
 
 token = os.getenv("DISC_TOKEN")
 
 logging.basicConfig(level=logging.DEBUG)
+
+start_http_server(80, "10.0.0.1")
 
 
 class OpusAudio(discord.AudioSource):
@@ -32,12 +42,16 @@ class Bot(discord.Client):
     messages = queue.Queue()
     volume = 100
 
+    def queue_size(self):
+        return self.messages.qsize()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     async def setup_hook(self):
         self.bg_task = self.loop.create_task(self.queue_handler())
         self.client = texttospeech.TextToSpeechAsyncClient()
+        queue_gauge.set_function(self.queue_size)
 
     async def on_ready(self):
         logging.info("Logged on as {0}!".format(self.user))
@@ -88,6 +102,7 @@ class Bot(discord.Client):
                 response = await self.client.synthesize_speech(
                     input=synthesis_input, voice=voice, audio_config=audio_config
                 )
+                request_size.observe(len(message))
                 logging.info("Got response")
                 logging.debug(response)
                 if not is_file:
@@ -131,6 +146,7 @@ class Bot(discord.Client):
                     await asyncio.sleep(1)
             await self.synthesize(*message)
 
+    @request_time.time()
     async def on_message(self, message):
         if message.content.startswith("$$leave"):
             await self.voice_clients[0].disconnect()
@@ -208,6 +224,7 @@ class Bot(discord.Client):
             logging.debug(message)
             item = (message, False)
             self.messages.put_nowait(item)
+            queue_gauge.set_to_current_time()
             logging.debug(self.messages.qsize())
 
     async def on_voice_state_update(self, member, before, after):
