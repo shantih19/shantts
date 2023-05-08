@@ -22,6 +22,7 @@ idna==2.10
 multidict==5.1.0
 packaging==20.9
 pipdate==0.5.3
+prometheus_async==22.2.0
 prometheus_client==0.16.0
 proto-plus==1.22.2
 protobuf==4.22.1
@@ -36,4 +37,5 @@ rsa==4.7.2
 six==1.16.0
 typing-extensions==3.10.0.0
 urllib3==1.26.4
+wrapt==1.15.0
 yarl==1.6.3

@@ -10,7 +10,9 @@ import queue
 from io import BytesIO
 import flag
 import traceback
-from prometheus_client import Gauge, Summary, start_http_server
+from prometheus_client import Gauge, Summary
+from prometheus_async.aio import time, track_inprogress
+from prometheus_async.aio.web import start_http_server
 
 NAMESPACE = "shantts"
 
@@ -142,7 +144,7 @@ class Bot(discord.Client):
                     await asyncio.sleep(1)
             await self.synthesize(*message)
 
-    @request_time.time()
+    @time(request_time)
     async def on_message(self, message):
         if message.content.startswith("$$leave"):
             await self.voice_clients[0].disconnect()
