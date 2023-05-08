@@ -10,9 +10,8 @@ import queue
 from io import BytesIO
 import flag
 import traceback
-from prometheus_client import Gauge, Summary
+from prometheus_client import Gauge, Summary, start_http_server
 from prometheus_async.aio import time, track_inprogress
-from prometheus_async.aio.web import start_http_server
 
 NAMESPACE = "shantts"
 
