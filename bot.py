@@ -26,7 +26,7 @@ token = os.getenv("DISC_TOKEN")
 
 logging.basicConfig(level=logging.DEBUG)
 
-start_http_server(9901, "10.0.0.1")
+start_http_server(port=9901, addr="10.0.0.1")
 
 
 class OpusAudio(discord.AudioSource):
