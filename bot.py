@@ -1,3 +1,4 @@
+#!python3
 import discord
 from commands import Commands
 import os
@@ -16,7 +17,7 @@ NAMESPACE = "shantts"
 
 token = os.getenv("DISC_TOKEN")
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 start_http_server(port=9901, addr="10.0.0.1")
 
@@ -45,12 +46,12 @@ class Bot(discord.Client):
             "queue_size", "Size of queue for synthesis", namespace=NAMESPACE
         )
         self.request_time = Summary(
-            "self.request_time", "Time of execution for a request", namespace=NAMESPACE
+            "request_time", "Time of execution for a request", namespace=NAMESPACE
         )
         self.request_size = Summary(
-            "self.request_size", "Size of request", namespace=NAMESPACE
+            "request_size", "Size of request", namespace=NAMESPACE
         )
-        self.self.queue_gauge.set(0)
+        self.queue_gauge.set(0)
         self.commands = Commands(self)
         self.messages = queue.Queue()
         self.volume = {}
