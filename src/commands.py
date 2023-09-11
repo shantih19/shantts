@@ -73,7 +73,7 @@ class Commands:
             except discord.ClientException as error:
                 await message.channel.send(error)
 
-    def restart(self):
+    async def restart(self, message: discord.Message):
         os.system("systemctl restart shantts")
 
     async def volume(self, message: discord.Message):

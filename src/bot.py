@@ -11,7 +11,6 @@ import queue
 from io import BytesIO
 import traceback
 from prometheus_client import Gauge, Summary, start_http_server
-from prometheus_async.aio import time, track_inprogress
 
 NAMESPACE = "shantts"
 
@@ -34,8 +33,6 @@ class OpusAudio(discord.AudioSource):
 
 
 class Bot(discord.Client):
-    request_time = None
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -154,17 +151,21 @@ class Bot(discord.Client):
     async def command_not_found(self):
         pass
 
-    @time(request_time)
     async def on_message(self, message: discord.Message):
-        if message.content.startswith("$$"):
-            command = message.content[2:]
-            if command in self.commands.commands:
-                getattr(self.commands, command, self.command_not_found)
+        with self.request_time.time():
+            if message.content.startswith("$$"):
+                command = message.content[2:]
+                logging.info(command)
+                logging.debug(self.commands.commands)
+                if command in self.commands.commands:
+                    await getattr(self.commands, command, self.command_not_found)(
+                        message
+                    )
 
-        elif message.content.startswith("$"):
-            item = (message, False)
-            self.messages.put_nowait(item)
-            self.queue_gauge.inc()
+            elif message.content.startswith("$"):
+                item = (message, False)
+                self.messages.put_nowait(item)
+                self.queue_gauge.inc()
 
     async def on_voice_state_update(self, member, before, after):
         vc = [

@@ -1,4 +1,4 @@
-**shantts** `version 1.0`
+**shantts** `version 2.0`
 
 __Commands:__
 
@@ -20,6 +20,3 @@ Roles:
 -`she/her`
 -`he/him`
 -`they/them`
-
-Upcoming:
-- specify voice

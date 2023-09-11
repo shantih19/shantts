@@ -1,4 +1,4 @@
-venv/
+.venv/
 bot-env/
 
 output.mp3
@@ -10,3 +10,7 @@ output.ogg
 __pycache__/
 
 .vscode/
+
+# Entries below this point are managed by Please (DO NOT EDIT)
+plz-out
+.plzconfig.local
