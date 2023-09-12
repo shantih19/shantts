@@ -1,0 +1,7 @@
+docker_image(
+    name="shantts",
+    srcs=[
+        "//src:bot"
+    ],
+    build_args = "-t git.shantih19.xyz/shantih19/shantts:latest"
+)

@@ -10,6 +10,15 @@
 
 [parse]
 preloadsubincludes = ///python//build_defs:python
+preloadsubincludes = ///docker//build_defs:docker
+preloadsubincludes = ///shell//build_defs:shell
 
 [Plugin "python"]
 Target = //plugins:python
+ModuleDir = third_party.python
+
+[Plugin "docker"]
+Target = //plugins:docker
+
+[Plugin "shell"]
+Target = //plugins:shell

@@ -1,6 +1,6 @@
 #!python3
 import discord
-from commands import Commands
+from src.commands import Commands
 import os
 import math
 from google.cloud import texttospeech
@@ -12,13 +12,11 @@ from io import BytesIO
 import traceback
 from prometheus_client import Gauge, Summary, start_http_server
 
-NAMESPACE = "shantts"
+NAMESPACE = os.getenv("METRICS_NAMESPACE", "shantts")
 
 token = os.getenv("DISC_TOKEN")
 
 logging.basicConfig(level=logging.INFO)
-
-start_http_server(port=9901, addr="10.0.0.1")
 
 
 class OpusAudio(discord.AudioSource):
@@ -192,4 +190,7 @@ def volume_db(volume):
 intents = discord.Intents.default()
 intents.message_content = True
 bot = Bot(intents=intents)
+start_http_server(
+    port=os.getenv("METRICS_PORT", 9901), addr=os.getenv("METRICS_ADDR", "0.0.0.0")
+)
 bot.run(token)

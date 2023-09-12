@@ -19,7 +19,7 @@ class Commands:
     async def cbt(self, message: discord.Message):
         if await self.bot.join_channel(message.author):
             try:
-                source = discord.FFmpegOpusAudio("cbt.ogg", bitrate=96)
+                source = discord.FFmpegOpusAudio("res/cbt.ogg", bitrate=96)
                 for client in self.bot.voice_clients:
                     if (
                         client.channel.id == message.author.voice.channel.id
@@ -30,7 +30,7 @@ class Commands:
                 await message.channel.send(error)
 
     async def help(self, message: discord.Message):
-        with open("help.txt", "r") as hlp:
+        with open("res/help.txt", "r") as hlp:
             await message.reply(hlp.read())
 
     async def languages(self, message: discord.Message):
@@ -63,7 +63,7 @@ class Commands:
     async def amogus(self, message: discord.Message):
         if await self.bot.join_channel(message.author):
             try:
-                source = discord.FFmpegOpusAudio("amogus.opus", bitrate=96)
+                source = discord.FFmpegOpusAudio("res/amogus.opus", bitrate=96)
                 for client in self.bot.voice_clients:
                     if (
                         client.channel.id == message.author.voice.channel.id

@@ -1,0 +1,23 @@
+python_library(
+    name = "commands",
+    srcs = [
+        "commands.py",
+    ],
+    deps = [
+        "//third_party/python:discord",
+        "//third_party/python:flag",
+    ],
+)
+
+python_binary(
+    name = "bot",
+    main = "bot.py",
+    resources = glob("res/*"),
+    deps = [
+        ":commands",
+        "//third_party/python:discord",
+        "//third_party/python:gtts",
+        "//third_party/python:prometheus",
+    ],
+    visibility=["//:shantts"]
+)
